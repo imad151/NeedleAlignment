@@ -8,13 +8,15 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 import omni.isaac.lab.sim as sim_utils
-from omni.isaac.lab.assets import ArticulationCfg, AssetBaseCfg
+from omni.isaac.lab.assets import ArticulationCfg, AssetBaseCfg, RigidObjectCfg
 from omni.isaac.lab.assets.articulation import ArticulationCfg
 from omni.isaac.lab.scene import InteractiveSceneCfg
 from omni.isaac.lab.utils import configclass
 from omni.isaac.lab.actuators import ImplicitActuatorCfg
 from omni.isaac.lab.sensors import CameraCfg
 import omni.isaac.core.utils.numpy.rotations as rot_utils
+from omni.isaac.lab.sim.schemas.schemas_cfg import RigidBodyPropertiesCfg
+from omni.isaac.lab.sim.spawners.from_files.from_files_cfg import UsdFileCfg
 
 
 
@@ -45,8 +47,8 @@ class dVRKSceneCfg(InteractiveSceneCfg):
                 "psm_tool_roll_joint": 0.01,
                 "psm_tool_pitch_joint": 0.01,
                 "psm_tool_yaw_joint": 0.01,
-                "psm_tool_gripper1_joint": -0.09,
-                "psm_tool_gripper2_joint": 0.09,
+                "psm_tool_gripper1_joint": -0.5,
+                "psm_tool_gripper2_joint": 0.5,
             },
             pos=(0.0, 0.0, 0.15),
         ),
@@ -87,5 +89,23 @@ class dVRKSceneCfg(InteractiveSceneCfg):
         #width=1920,
         data_types=["rgb"],
         spawn=sim_utils.PinholeCameraCfg(focal_length=18.0, focus_distance=400.0, horizontal_aperture=20.955, clipping_range=(0.1, 1.0e5)),
-        offset=CameraCfg.OffsetCfg(pos=(0.0018, -0.11761, 0.10819), rot = rot_utils.euler_angles_to_quats(np.array([-90.0, 0.0, 0.0]), degrees=True)),
+        offset=CameraCfg.OffsetCfg(pos=(0.0018, -0.11761, 0.0519), rot = rot_utils.euler_angles_to_quats(np.array([-90.0, 0.0, 0.0]), degrees=True)),
+    )
+
+
+    Needle: RigidObjectCfg = RigidObjectCfg(
+        prim_path="/World/Needle",
+        init_state=RigidObjectCfg.InitialStateCfg(pos=(0.0123, 0., -0.06104), rot=rot_utils.euler_angles_to_quats(np.array([90.0, 0.0, -90.0]), degrees=True)),
+        spawn=UsdFileCfg(
+            usd_path=f"{ORBITSURGICAL_ASSETS_DATA_DIR}/Props/Surgical_needle/needle_sdf.usd",
+            scale=(0.4, 0.4, 0.4),
+            rigid_props=RigidBodyPropertiesCfg(
+                solver_position_iteration_count=16,
+                solver_velocity_iteration_count=8,
+                max_angular_velocity=200,
+                max_linear_velocity=200,
+                max_depenetration_velocity=1.0,
+                disable_gravity=True,
+            ),
+        ),
     )

@@ -1,40 +1,45 @@
 import numpy as np
-import matplotlib.pyplot as plt
 
-def compute_trajectory(tip, cam, num_points):
-    radius = np.linalg.norm(cam[:2] - tip[:2])  # Compute radius in the XY plane
-    points = []
-    orientations = []
-    for point in range(num_points):
-        theta = 2 * np.pi * point / num_points  # Angle for circular motion
-        new_pos = np.array([tip[0] + radius * np.cos(theta),  # X-coordinate
-                            tip[1] + radius * np.sin(theta),  # Y-coordinate
-                            tip[2]])  # Z-coordinate remains constant
-        orientation = tip[:2] - new_pos[:2]  # Vector from new_pos to tip
-        orientation = np.append(orientation / np.linalg.norm(orientation), 0)  # Normalize and add Z-coordinate
-        points.append(new_pos)
-        orientations.append(orientation)
-    return np.array(points), np.array(orientations)
+def compute_projection_on_floor(camera_pos, target_pos, focal_length, horizontal_aperture):
+    """
+    Compute the projected square area on an infinite floor given camera intrinsics.
+    """
+    # Compute FOV from focal length and aperture
+    fov_h = 2 * np.arctan((horizontal_aperture / 2) / focal_length)
+    fov_v = 2 * np.arctan((horizontal_aperture / (2 * (16/9))) / focal_length)  # Assuming 16:9 aspect ratio
 
-def plot_trajectory(points, orientations):
-    fig = plt.figure()
-    ax = fig.add_subplot(111, projection='3d')
-    ax.plot(points[:, 0], points[:, 1], points[:, 2], 'b-')  
-    for i in range(len(points)):
-        ax.quiver(points[i, 0], points[i, 1], points[i, 2], 
-                  orientations[i, 0], orientations[i, 1], orientations[i, 2], 
-                  length=0.05, color='r', normalize=True)
-    ax.set_xlabel('X')
-    ax.set_ylabel('Y')
-    ax.set_zlabel('Z')
-    ax.set_title('Oriented 3D Trajectory (Fixed Z)')
-    plt.show()
+    # Direction vector from camera to target
+    direction = target_pos - camera_pos
+    direction /= np.linalg.norm(direction)  # Normalize
 
-# Parameters
-NUM_POINTS = 50
-POS_CAM_INIT = np.array([0.0018, -0.11761, 1])  # Camera position
-POS_TIP_INIT = np.array([0.0, 0.0, 0])  # Tip position
+    # Compute intersection with floor (z=0)
+    lambda_intersect = -camera_pos[2] / direction[2]  # Solving for P_z = 0
+    center_on_floor = camera_pos + lambda_intersect * direction
 
-# Compute and plot the trajectory
-points, orientations = compute_trajectory(POS_TIP_INIT, POS_CAM_INIT, NUM_POINTS)
-plot_trajectory(points, orientations)
+    # Compute half extents using FOV
+    half_width = np.tan(fov_h / 2) * lambda_intersect
+    half_height = np.tan(fov_v / 2) * lambda_intersect
+
+    # Get four corners of the captured area
+    top_left = center_on_floor + np.array([-half_width, half_height, 0])
+    top_right = center_on_floor + np.array([half_width, half_height, 0])
+    bottom_left = center_on_floor + np.array([-half_width, -half_height, 0])
+    bottom_right = center_on_floor + np.array([half_width, -half_height, 0])
+
+    # Compute area of the captured square
+    width = np.linalg.norm(top_right - top_left)
+    height = np.linalg.norm(top_left - bottom_left)
+    area = width * height
+
+    return np.array([top_left, top_right, bottom_left, bottom_right]), area
+
+# Example Usage
+camera_pos = np.array([0, 0, 1.0])  # Camera at (0,0,10)
+target_pos = np.array([0, 0, 0])   # Looking at (0,0,0)
+focal_length = 24.0
+horizontal_aperture = 20.955
+
+corners, area = compute_projection_on_floor(camera_pos, target_pos, focal_length, horizontal_aperture)
+
+print("Projected Area on Floor:", area)
+print("Corner Coordinates:", corners)
